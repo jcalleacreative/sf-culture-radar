@@ -1,5 +1,6 @@
 # backend/jobs/run_analysis.py
 
+import json
 import sys
 import os
 
@@ -35,18 +36,18 @@ def main():
         print(f"[{story_id}] {title[:80]}")
 
         try:
-            score, category, explanation = analyze(title)
+            score, signals, category, explanation = analyze(title)
             with get_connection() as conn:
                 conn.execute(
                     """
                     UPDATE stories
-                    SET llm_score = ?, category = ?, explanation = ?
+                    SET llm_score = ?, category = ?, explanation = ?, signals = ?
                     WHERE id = ?
                     """,
-                    (score, category, explanation, story_id),
+                    (score, category, explanation, json.dumps(signals), story_id),
                 )
                 conn.commit()
-            print(f"  -> score={score}, category={category}")
+            print(f"  -> score={score}, signals={signals}, category={category}")
         except Exception as e:
             print(f"  -> ERROR: {e}")
 

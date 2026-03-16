@@ -1,12 +1,13 @@
 # backend/api/server.py
 
+import json
 import logging
 import sys
 import os
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 
-from fastapi import FastAPI, HTTPException, Request, Query
+from fastapi import FastAPI, Request, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
@@ -30,6 +31,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+SIGNAL_WEIGHTS = {
+    "tech_ai": 2,
+    "algorithm_logic": 2,
+    "reddit_discourse": 1,
+    "policy_contradiction": 2,
+    "local_absurdity": 1,
+}
+REDDIT_SOURCE_BONUS = 2
+
 
 @app.on_event("startup")
 def on_startup():
@@ -47,14 +57,33 @@ async def api_key_middleware(request: Request, call_next):
     return await call_next(request)
 
 
-STORY_FIELDS = (
+DB_FIELDS = (
     "id", "title", "url", "source", "timestamp", "created_at",
-    "upvotes", "comments", "llm_score", "popularity_score", "category", "explanation"
+    "upvotes", "comments", "llm_score", "popularity_score", "category", "explanation", "signals"
 )
 
 
+def _compute_derived_score(llm_score: float | None, signals: list[str], source: str) -> float | None:
+    if llm_score is None:
+        return None
+    score = llm_score
+    score += sum(SIGNAL_WEIGHTS.get(s, 0) for s in signals)
+    if source and source.lower().startswith("r/"):
+        score += REDDIT_SOURCE_BONUS
+    return score
+
+
 def _rows_to_dicts(rows) -> list[dict]:
-    return [dict(zip(STORY_FIELDS, (row[f] for f in STORY_FIELDS))) for row in rows]
+    result = []
+    for row in rows:
+        d = {f: row[f] for f in DB_FIELDS}
+        # Deserialize signals from JSON string to list
+        raw_signals = d.get("signals")
+        signals = json.loads(raw_signals) if raw_signals else []
+        d["signals"] = signals
+        d["derived_score"] = _compute_derived_score(d["llm_score"], signals, d["source"])
+        result.append(d)
+    return result
 
 
 @app.get("/stories")
@@ -62,7 +91,7 @@ def get_stories(
     category: Optional[str] = Query(default=None),
     min_llm_score: Optional[float] = Query(default=None),
 ):
-    query = f"SELECT {', '.join(STORY_FIELDS)} FROM stories WHERE 1=1"
+    query = f"SELECT {', '.join(DB_FIELDS)} FROM stories WHERE 1=1"
     params: list = []
 
     if category is not None:
@@ -88,7 +117,7 @@ def get_week(
 ):
     cutoff = (datetime.now(tz=timezone.utc) - timedelta(days=7)).isoformat()
 
-    query = f"SELECT {', '.join(STORY_FIELDS)} FROM stories WHERE timestamp >= ?"
+    query = f"SELECT {', '.join(DB_FIELDS)} FROM stories WHERE timestamp >= ?"
     params: list = [cutoff]
 
     if category is not None:

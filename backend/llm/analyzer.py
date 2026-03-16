@@ -10,22 +10,25 @@ from config.settings import (
     LLM_MODEL_ANTHROPIC,
 )
 
+VALID_SIGNALS = {"tech_ai", "algorithm_logic", "reddit_discourse", "policy_contradiction", "local_absurdity"}
+
 PROMPT_TEMPLATE = """You are evaluating San Francisco news headlines for comedy sketch potential.
 
 Headline: {title}
 
-Look for contradictions or absurdity involving:
-- dog culture
-- environmental ideology vs. behavior
-- tech culture and entitlement
-- bureaucratic dysfunction
-- tourism vs. local norms
+Score the headline 0-10 for sketch comedy potential, then identify which of these signals apply:
+- tech_ai: involves AI, tech companies, or Silicon Valley culture
+- algorithm_logic: algorithmic or data-driven thinking applied to human situations
+- reddit_discourse: internet argument culture, viral outrage, or Reddit-style debate
+- policy_contradiction: a rule or policy produces an obviously absurd or opposite outcome
+- local_absurdity: unusual San Francisco cultural norms or only-in-SF situations
 
-Respond ONLY with valid JSON, no markdown, no explanation:
+Return ONLY a JSON object with exactly these fields, no markdown, no explanation:
 {{
-  "score": <integer 0-10>,
+  "llm_score": <integer 0-10>,
+  "signals": [<zero or more signal strings from the list above>],
   "category": "<short label>",
-  "explanation": "<one sentence>"
+  "explanation": "<one sentence describing the contradiction or absurdity>"
 }}"""
 
 
@@ -64,9 +67,9 @@ def _call_anthropic(title: str) -> dict:
     return json.loads(raw)
 
 
-def analyze(title: str) -> tuple[float, str, str]:
+def analyze(title: str) -> tuple[float, list[str], str, str]:
     """
-    Returns (score, category, explanation).
+    Returns (llm_score, signals, category, explanation).
     Raises on API error or JSON parse failure — let the caller handle it.
     """
     if LLM_PROVIDER == "anthropic":
@@ -74,7 +77,8 @@ def analyze(title: str) -> tuple[float, str, str]:
     else:
         result = _call_openai(title)
 
-    score = float(result["score"])
+    score = float(result["llm_score"])
+    signals = [s for s in result.get("signals", []) if s in VALID_SIGNALS]
     category = str(result["category"])
     explanation = str(result["explanation"])
-    return score, category, explanation
+    return score, signals, category, explanation

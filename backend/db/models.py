@@ -13,6 +13,12 @@ CREATE TABLE IF NOT EXISTS stories (
     llm_score        REAL,
     popularity_score REAL,
     category         TEXT,
-    explanation      TEXT
+    explanation      TEXT,
+    signals          TEXT
 );
 """
+
+# Run after CREATE TABLE to add columns introduced after initial schema.
+MIGRATIONS = [
+    "ALTER TABLE stories ADD COLUMN signals TEXT",
+]

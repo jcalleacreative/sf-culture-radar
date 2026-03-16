@@ -2,7 +2,7 @@
 
 import sqlite3
 from config.settings import DATABASE_PATH
-from db.models import CREATE_STORIES_TABLE
+from db.models import CREATE_STORIES_TABLE, MIGRATIONS
 
 
 def get_connection() -> sqlite3.Connection:
@@ -15,3 +15,10 @@ def init_db():
     with get_connection() as conn:
         conn.execute(CREATE_STORIES_TABLE)
         conn.commit()
+        for migration in MIGRATIONS:
+            try:
+                conn.execute(migration)
+                conn.commit()
+            except Exception:
+                # Column already exists — safe to ignore.
+                pass
