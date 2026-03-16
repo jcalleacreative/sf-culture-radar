@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SF Culture Radar</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="container">
+      <header class="header">
+        <h1>SF Culture Radar</h1>
+        <p>Top sketch-worthy stories from the last week, ranked by LLM score.</p>
+      </header>
+
+      <section class="controls" aria-label="filters">
+        <label class="control-group" for="apiBaseUrl">
+          API Base URL
+          <input id="apiBaseUrl" type="url" value="http://localhost:8000" />
+        </label>
+
+        <label class="control-group" for="categoryFilter">
+          Category
+          <select id="categoryFilter">
+            <option value="">All categories</option>
+          </select>
+        </label>
+
+        <label class="control-group" for="storyLimit">
+          Limit
+          <input id="storyLimit" type="number" value="25" min="1" max="100" />
+        </label>
+
+        <button id="refreshButton" type="button">Refresh</button>
+      </section>
+
+      <p id="status" role="status" aria-live="polite"></p>
+      <section id="stories" class="story-grid" aria-label="stories"></section>
+    </main>
+
+    <template id="storyCardTemplate">
+      <article class="story-card">
+        <header>
+          <h2 class="story-title"></h2>
+          <div class="story-meta"></div>
+        </header>
+        <p class="story-explanation"></p>
+        <footer class="story-footer">
+          <span class="story-category"></span>
+          <a class="story-link" target="_blank" rel="noreferrer noopener">Read story</a>
+        </footer>
+      </article>
+    </template>
+
+    <script src="./app.js" defer></script>
+  </body>
+</html>
