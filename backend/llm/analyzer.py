@@ -56,6 +56,11 @@ def _call_anthropic(title: str) -> dict:
         messages=[{"role": "user", "content": prompt}],
     )
     raw = message.content[0].text.strip()
+    if raw.startswith("```"):
+        raw = raw.split("```", 2)[1]
+        if raw.startswith("json"):
+            raw = raw[4:]
+        raw = raw.strip()
     return json.loads(raw)
 
 
