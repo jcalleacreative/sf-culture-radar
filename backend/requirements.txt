@@ -1,0 +1,7 @@
+fastapi
+uvicorn
+praw
+feedparser
+openai
+anthropic
+python-dotenv
