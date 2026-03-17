@@ -31,14 +31,21 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-SIGNAL_WEIGHTS = {
-    "rare_event": 4,
-    "internet_discourse": 3,
-    "tech_ai": 2,
-    "algorithm_logic": 2,
-    "local_absurdity": 2,
+# Maps the ?source= param to the actual source values stored in the DB.
+# Allows ?source=reddit to match all Reddit subreddits, etc.
+SOURCE_GROUPS = {
+    "reddit": ["sanfrancisco", "AskSF", "bayarea", "technology"],
+    "rss": ["Mission Local", "SF Standard", "SFGATE"],
+    "google_trends": ["google_trends"],
+    "youtube": ["youtube"],
+    "bluesky": ["bluesky"],
 }
-REDDIT_SOURCE_BONUS = 2
+
+DB_FIELDS = (
+    "id", "title", "url", "source", "timestamp", "created_at",
+    "upvotes", "comments", "llm_score", "popularity_score",
+    "category", "explanation", "signals", "playable",
+)
 
 
 @app.on_event("startup")
@@ -57,40 +64,34 @@ async def api_key_middleware(request: Request, call_next):
     return await call_next(request)
 
 
-DB_FIELDS = (
-    "id", "title", "url", "source", "timestamp", "created_at",
-    "upvotes", "comments", "llm_score", "popularity_score", "category", "explanation", "signals", "playable"
-)
-
-
-def _compute_derived_score(llm_score: float | None, signals: list[str], source: str) -> float | None:
-    if llm_score is None:
-        return None
-    score = llm_score
-    score += sum(SIGNAL_WEIGHTS.get(s, 0) for s in signals)
-    if source and source.lower().startswith("r/"):
-        score += REDDIT_SOURCE_BONUS
-    return score
-
-
 def _rows_to_dicts(rows) -> list[dict]:
     result = []
     for row in rows:
         d = {f: row[f] for f in DB_FIELDS}
-        # Deserialize signals from JSON string to list
         raw_signals = d.get("signals")
-        signals = json.loads(raw_signals) if raw_signals else []
-        d["signals"] = signals
+        d["signals"] = json.loads(raw_signals) if raw_signals else []
         d["playable"] = bool(d["playable"]) if d["playable"] is not None else None
-        d["derived_score"] = _compute_derived_score(d["llm_score"], signals, d["source"])
         result.append(d)
     return result
+
+
+def _build_source_filter(source: Optional[str]) -> tuple[str, list]:
+    """Return (sql_fragment, params) for a source filter, or ('', []) if no filter."""
+    if source is None:
+        return "", []
+    group = SOURCE_GROUPS.get(source.lower())
+    if group:
+        placeholders = ", ".join("?" * len(group))
+        return f" AND source IN ({placeholders})", list(group)
+    # Exact match fallback
+    return " AND source = ?", [source]
 
 
 @app.get("/stories")
 def get_stories(
     category: Optional[str] = Query(default=None),
     min_llm_score: Optional[float] = Query(default=None),
+    source: Optional[str] = Query(default=None),
 ):
     query = f"SELECT {', '.join(DB_FIELDS)} FROM stories WHERE 1=1"
     params: list = []
@@ -102,6 +103,10 @@ def get_stories(
         query += " AND llm_score >= ?"
         params.append(min_llm_score)
 
+    src_sql, src_params = _build_source_filter(source)
+    query += src_sql
+    params.extend(src_params)
+
     query += " ORDER BY timestamp DESC"
 
     with get_connection() as conn:
@@ -112,26 +117,71 @@ def get_stories(
 
 @app.get("/week")
 def get_week(
-    limit: int = Query(default=10, ge=1, le=100),
+    limit: int = Query(default=50, ge=1, le=500),
+    source: Optional[str] = Query(default=None),
     category: Optional[str] = Query(default=None),
+    min_llm_score: Optional[float] = Query(default=None),
+    playable: Optional[bool] = Query(default=None),
+    sort_by: Optional[str] = Query(default="newest"),
+    from_: Optional[str] = Query(default=None, alias="from"),
+    to: Optional[str] = Query(default=None),
 ):
-    cutoff = (datetime.now(tz=timezone.utc) - timedelta(days=7)).isoformat()
+    """
+    Rolling 7-day feed. Returns all items from the last 7 days by default.
 
-    # Fetch playable stories from the last 7 days, scored and ranked
-    query = f"SELECT {', '.join(DB_FIELDS)} FROM stories WHERE timestamp >= ? AND playable = 1"
-    params: list = [cutoff]
+    Query params:
+      limit         Max items to return (default 50, max 500)
+      source        Filter by source group: reddit, rss, google_trends, youtube, bluesky
+                    or any exact source name stored in the DB
+      category      Filter by LLM-assigned category label
+      min_llm_score Minimum llm_score (0–10)
+      playable      true = only playable items; false = only non-playable; omit = all
+      sort_by       newest (default) | llm | popularity
+      from          Start of date window (ISO 8601, e.g. 2026-03-10)
+      to            End of date window (ISO 8601, e.g. 2026-03-17)
+    """
+    now = datetime.now(tz=timezone.utc)
+
+    if from_ is not None:
+        cutoff = from_
+    else:
+        cutoff = (now - timedelta(days=7)).isoformat()
+
+    if to is not None:
+        ceiling = to
+    else:
+        ceiling = now.isoformat()
+
+    query = f"SELECT {', '.join(DB_FIELDS)} FROM stories WHERE timestamp >= ? AND timestamp <= ?"
+    params: list = [cutoff, ceiling]
 
     if category is not None:
         query += " AND category = ?"
         params.append(category)
 
-    query += " ORDER BY llm_score DESC"
+    if min_llm_score is not None:
+        query += " AND llm_score >= ?"
+        params.append(min_llm_score)
+
+    if playable is not None:
+        query += " AND playable = ?"
+        params.append(1 if playable else 0)
+
+    src_sql, src_params = _build_source_filter(source)
+    query += src_sql
+    params.extend(src_params)
+
+    sort_map = {
+        "newest": "timestamp DESC",
+        "llm": "llm_score DESC",
+        "popularity": "popularity_score DESC",
+    }
+    order_clause = sort_map.get(sort_by, "timestamp DESC")
+    query += f" ORDER BY {order_clause}"
+    query += " LIMIT ?"
+    params.append(limit)
 
     with get_connection() as conn:
         rows = conn.execute(query, params).fetchall()
 
-    stories = _rows_to_dicts(rows)
-
-    # Sort by derived_score (accounts for signals + reddit bonus) then take top N
-    stories.sort(key=lambda s: s["derived_score"] if s["derived_score"] is not None else 0, reverse=True)
-    return stories[:limit]
+    return _rows_to_dicts(rows)

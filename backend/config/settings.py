@@ -21,4 +21,6 @@ LLM_MODEL_ANTHROPIC = os.getenv("LLM_MODEL_ANTHROPIC", "claude-haiku-4-5-2025100
 
 REDDIT_POST_LIMIT = int(os.getenv("REDDIT_POST_LIMIT", "25"))
 
+YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY", "")
+
 API_KEY = os.getenv("API_KEY", "")

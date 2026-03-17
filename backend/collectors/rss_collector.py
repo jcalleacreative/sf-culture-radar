@@ -11,7 +11,6 @@ RSS_FEEDS = {
     "Mission Local": "https://missionlocal.org/feed/",
     "SF Standard": "https://sfstandard.com/feed/",
     "SFGATE": "https://www.sfgate.com/rss/feed/SFGATE-News-Feed-703720.php",
-    "Eater SF": "https://sf.eater.com/rss/index.xml",
 }
 
 

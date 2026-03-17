@@ -5,3 +5,5 @@ feedparser
 openai
 anthropic
 python-dotenv
+pytrends
+requests

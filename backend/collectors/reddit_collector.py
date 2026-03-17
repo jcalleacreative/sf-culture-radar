@@ -15,7 +15,7 @@ from config.settings import (
 )
 from db.database import get_connection, init_db
 
-SUBREDDITS = ["sanfrancisco", "AskSF", "bayarea"]
+SUBREDDITS = ["sanfrancisco", "AskSF", "bayarea", "technology"]
 
 
 def _make_reddit() -> praw.Reddit:
