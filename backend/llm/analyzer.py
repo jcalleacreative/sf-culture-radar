@@ -12,39 +12,47 @@ from config.settings import (
 
 VALID_SIGNALS = {
     "rare_event", "internet_discourse", "tech_ai", "algorithm_logic", "local_absurdity",
-    "policy_process", "bureaucratic_procedure",
 }
 
-PROMPT_TEMPLATE = """You are scoring news headlines for a 25-40 year old audience.
+PROMPT_TEMPLATE = """You are a premise filter for a sketch comedy show targeting 25-40 year olds in San Francisco.
 
 Headline: {title}
 
-Before scoring, ask yourself: "Would a 25-40 year old realistically send this story to a friend because it is weird, surprising, or funny?"
+Your job is NOT to rank all news. Your job is to find things that could turn into a bit.
 
-If YES → score 6-10.
-If NO and the story is about government process, committee decisions, regulatory updates, policy restructuring, or bureaucratic efficiency → score 0-3.
+Ask yourself: "Would a 25-40 year old send this to a friend because it is weird, surprising, or funny?"
 
-Positive signals (apply if present):
+A PLAYABLE story is:
+- unusual, surprising, or confusing
+- easy to visualize or imagine on stage
+- something people would react to or share online
+- feels like it could turn into a bit
+
+NOT PLAYABLE (score 0-3, playable=false):
+- government committee decisions
+- regulatory updates or policy restructuring
+- bureaucratic process or administrative efficiency
+- abstract governance topics
+If the story is primarily about any of the above AND there is no rare or unusual event → playable=false and score must be 0-3.
+
+Apply these signals if present:
 - rare_event: an unusual real-world event that is surprising or uncommon (e.g. a wolf swims to Alcatraz)
-- internet_discourse: likely to go viral or spark online debate
+- internet_discourse: likely to go viral or spark online debate or sharing
 - tech_ai: involves AI, tech companies, or technology culture
 - algorithm_logic: algorithmic or data-driven thinking applied to human life
-- local_absurdity: strange cultural behaviors specific to a city environment
-
-Negative signals (apply if present):
-- policy_process: story is primarily about government committees, policy reform, or administrative restructuring
-- bureaucratic_procedure: story is primarily about regulatory updates, rules, or bureaucratic efficiency
+- local_absurdity: strange cultural behaviors specific to a city or neighborhood
 
 Examples:
-- "Wolf swims to Alcatraz and officials refuse to intervene" → score 9, signals: ["rare_event","internet_discourse","local_absurdity"]
-- "Months and millions later, SF may make few changes to city commissions" → score 2, signals: ["policy_process","bureaucratic_procedure"]
+- "Wolf swims to Alcatraz and officials refuse to intervene" → playable=true, score=9, signals=["rare_event","internet_discourse","local_absurdity"]
+- "Months and millions later, SF may make few changes to city commissions" → playable=false, score=2, signals=[]
 
 Return ONLY a JSON object with exactly these fields, no markdown, no explanation:
 {{
+  "playable": <true or false>,
   "llm_score": <integer 0-10>,
-  "signals": [<zero or more signal strings from the lists above>],
+  "signals": [<zero or more signal strings from the list above>],
   "category": "<short label>",
-  "explanation": "<one sentence explaining why this story is or is not interesting>"
+  "explanation": "<one sentence explaining why this story is or is not a playable premise>"
 }}"""
 
 
@@ -83,9 +91,9 @@ def _call_anthropic(title: str) -> dict:
     return json.loads(raw)
 
 
-def analyze(title: str) -> tuple[float, list[str], str, str]:
+def analyze(title: str) -> tuple[bool, float, list[str], str, str]:
     """
-    Returns (llm_score, signals, category, explanation).
+    Returns (playable, llm_score, signals, category, explanation).
     Raises on API error or JSON parse failure — let the caller handle it.
     """
     if LLM_PROVIDER == "anthropic":
@@ -93,8 +101,14 @@ def analyze(title: str) -> tuple[float, list[str], str, str]:
     else:
         result = _call_openai(title)
 
+    playable = bool(result.get("playable", False))
     score = float(result["llm_score"])
     signals = [s for s in result.get("signals", []) if s in VALID_SIGNALS]
     category = str(result["category"])
     explanation = str(result["explanation"])
-    return score, signals, category, explanation
+
+    # Enforce hard rule: no rare event + bureaucratic content → not playable, score <= 3
+    if not playable and score > 3:
+        score = 3.0
+
+    return playable, score, signals, category, explanation

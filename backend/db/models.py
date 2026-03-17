@@ -14,11 +14,13 @@ CREATE TABLE IF NOT EXISTS stories (
     popularity_score REAL,
     category         TEXT,
     explanation      TEXT,
-    signals          TEXT
+    signals          TEXT,
+    playable         INTEGER
 );
 """
 
 # Run after CREATE TABLE to add columns introduced after initial schema.
 MIGRATIONS = [
     "ALTER TABLE stories ADD COLUMN signals TEXT",
+    "ALTER TABLE stories ADD COLUMN playable INTEGER",
 ]

@@ -36,18 +36,18 @@ def main():
         print(f"[{story_id}] {title[:80]}")
 
         try:
-            score, signals, category, explanation = analyze(title)
+            playable, score, signals, category, explanation = analyze(title)
             with get_connection() as conn:
                 conn.execute(
                     """
                     UPDATE stories
-                    SET llm_score = ?, category = ?, explanation = ?, signals = ?
+                    SET llm_score = ?, category = ?, explanation = ?, signals = ?, playable = ?
                     WHERE id = ?
                     """,
-                    (score, category, explanation, json.dumps(signals), story_id),
+                    (score, category, explanation, json.dumps(signals), int(playable), story_id),
                 )
                 conn.commit()
-            print(f"  -> score={score}, signals={signals}, category={category}")
+            print(f"  -> playable={playable}, score={score}, signals={signals}, category={category}")
         except Exception as e:
             print(f"  -> ERROR: {e}")
 
