@@ -10,25 +10,27 @@ from config.settings import (
     LLM_MODEL_ANTHROPIC,
 )
 
-VALID_SIGNALS = {"tech_ai", "algorithm_logic", "reddit_discourse", "policy_contradiction", "local_absurdity"}
+VALID_SIGNALS = {"tech_ai", "algorithm_logic", "internet_discourse", "rare_event", "local_absurdity"}
 
-PROMPT_TEMPLATE = """You are evaluating San Francisco news headlines for comedy sketch potential.
+PROMPT_TEMPLATE = """You are evaluating news headlines for a 25-40 year old audience interested in unusual, surprising, or internet-worthy stories.
 
 Headline: {title}
 
-Score the headline 0-10 for sketch comedy potential, then identify which of these signals apply:
-- tech_ai: involves AI, tech companies, or Silicon Valley culture
-- algorithm_logic: algorithmic or data-driven thinking applied to human situations
-- reddit_discourse: internet argument culture, viral outrage, or Reddit-style debate
-- policy_contradiction: a rule or policy produces an obviously absurd or opposite outcome
-- local_absurdity: unusual San Francisco cultural norms or only-in-SF situations
+Score the headline 0-10 for how interesting, surprising, or discussable it is. High scores go to stories that are rare, visually strange, or would spread online. Low scores go to routine government policy, committee decisions, or regulatory updates.
+
+Identify which of these signals apply (use as many as fit):
+- rare_event: an unusual real-world event that is surprising or uncommon
+- internet_discourse: likely to spark online discussion, debate, or go viral
+- tech_ai: involves AI, tech companies, or technology culture
+- algorithm_logic: algorithmic or data-driven thinking applied to human life
+- local_absurdity: strange cultural behaviors specific to a city environment
 
 Return ONLY a JSON object with exactly these fields, no markdown, no explanation:
 {{
   "llm_score": <integer 0-10>,
   "signals": [<zero or more signal strings from the list above>],
   "category": "<short label>",
-  "explanation": "<one sentence describing the contradiction or absurdity>"
+  "explanation": "<one sentence explaining why this story is unusual or interesting>"
 }}"""
 
 

@@ -32,10 +32,10 @@ app.add_middleware(
 )
 
 SIGNAL_WEIGHTS = {
+    "rare_event": 3,
+    "internet_discourse": 2,
     "tech_ai": 2,
     "algorithm_logic": 2,
-    "reddit_discourse": 1,
-    "policy_contradiction": 2,
     "local_absurdity": 1,
 }
 REDDIT_SOURCE_BONUS = 2
