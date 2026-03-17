@@ -10,27 +10,41 @@ from config.settings import (
     LLM_MODEL_ANTHROPIC,
 )
 
-VALID_SIGNALS = {"tech_ai", "algorithm_logic", "internet_discourse", "rare_event", "local_absurdity"}
+VALID_SIGNALS = {
+    "rare_event", "internet_discourse", "tech_ai", "algorithm_logic", "local_absurdity",
+    "policy_process", "bureaucratic_procedure",
+}
 
-PROMPT_TEMPLATE = """You are evaluating news headlines for a 25-40 year old audience interested in unusual, surprising, or internet-worthy stories.
+PROMPT_TEMPLATE = """You are scoring news headlines for a 25-40 year old audience.
 
 Headline: {title}
 
-Score the headline 0-10 for how interesting, surprising, or discussable it is. High scores go to stories that are rare, visually strange, or would spread online. Low scores go to routine government policy, committee decisions, or regulatory updates.
+Before scoring, ask yourself: "Would a 25-40 year old realistically send this story to a friend because it is weird, surprising, or funny?"
 
-Identify which of these signals apply (use as many as fit):
-- rare_event: an unusual real-world event that is surprising or uncommon
-- internet_discourse: likely to spark online discussion, debate, or go viral
+If YES → score 6-10.
+If NO and the story is about government process, committee decisions, regulatory updates, policy restructuring, or bureaucratic efficiency → score 0-3.
+
+Positive signals (apply if present):
+- rare_event: an unusual real-world event that is surprising or uncommon (e.g. a wolf swims to Alcatraz)
+- internet_discourse: likely to go viral or spark online debate
 - tech_ai: involves AI, tech companies, or technology culture
 - algorithm_logic: algorithmic or data-driven thinking applied to human life
 - local_absurdity: strange cultural behaviors specific to a city environment
 
+Negative signals (apply if present):
+- policy_process: story is primarily about government committees, policy reform, or administrative restructuring
+- bureaucratic_procedure: story is primarily about regulatory updates, rules, or bureaucratic efficiency
+
+Examples:
+- "Wolf swims to Alcatraz and officials refuse to intervene" → score 9, signals: ["rare_event","internet_discourse","local_absurdity"]
+- "Months and millions later, SF may make few changes to city commissions" → score 2, signals: ["policy_process","bureaucratic_procedure"]
+
 Return ONLY a JSON object with exactly these fields, no markdown, no explanation:
 {{
   "llm_score": <integer 0-10>,
-  "signals": [<zero or more signal strings from the list above>],
+  "signals": [<zero or more signal strings from the lists above>],
   "category": "<short label>",
-  "explanation": "<one sentence explaining why this story is unusual or interesting>"
+  "explanation": "<one sentence explaining why this story is or is not interesting>"
 }}"""
 
 
