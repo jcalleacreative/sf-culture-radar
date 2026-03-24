@@ -18,7 +18,7 @@ def main():
         rows = conn.execute(
             """
             SELECT id, title FROM stories
-            WHERE llm_score IS NULL AND length(title) > 30
+            WHERE llm_score IS NULL AND length(title) > 50
             ORDER BY timestamp DESC
             LIMIT 30
             """

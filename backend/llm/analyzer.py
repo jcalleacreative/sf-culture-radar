@@ -35,6 +35,8 @@ NOT PLAYABLE (score 0-3, playable=false):
 - abstract governance topics
 - vague or context-free titles with no news value (e.g. "Morning Joe", "The Situation Room", "America's Newsroom")
 - social media posts about personal photos, art, nature, or daily greetings with no news or cultural event attached
+- content written in a non-English language
+- pet introduction posts or animal photos with no news value (e.g. "Some cats are just…")
 If the story is primarily about any of the above AND there is no rare or unusual event → playable=false and score must be 0-3.
 
 Apply these signals if present:
