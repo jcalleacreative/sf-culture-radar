@@ -17,7 +17,7 @@ def main():
     with get_connection() as conn:
         rows = conn.execute(
             """
-            SELECT id, title FROM stories
+            SELECT id, title, url FROM stories
             WHERE llm_score IS NULL AND length(title) > 50
             ORDER BY timestamp DESC
             LIMIT 30
@@ -34,6 +34,7 @@ def main():
         story_id = row["id"]
         title = row["title"]
         print(f"[{story_id}] {title[:80]}")
+        print(f"  {row['url']}")
 
         try:
             playable, score, signals, category, explanation = analyze(title)
