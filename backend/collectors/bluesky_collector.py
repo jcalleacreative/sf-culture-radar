@@ -21,6 +21,19 @@ from db.database import get_connection, init_db
 
 SOURCE_NAME = "bluesky"
 
+SKIP_KEYWORDS = [
+    "#aiart", "#ai ", "good morning", "my painting", "my photo",
+    "📷", "🌸", "🌿", "🌄", "✨", "#nature", "#art", "#photography",
+    "good night", "happy tuesday", "happy wednesday", "happy thursday",
+    "happy friday", "happy weekend", "daily cartoon", "boicot",
+]
+
+
+def _is_noise(text: str) -> bool:
+    lower = text.lower()
+    return any(kw in lower for kw in SKIP_KEYWORDS)
+
+
 # The "What's Hot" feed is publicly accessible without credentials.
 WHATS_HOT_FEED = "at://did:plc:z72i7hdynmk6r22z27h6tvur/app.bsky.feed.generator/whats-hot"
 BSKY_API_URL = "https://public.api.bsky.app/xrpc/app.bsky.feed.getFeed"
@@ -62,6 +75,8 @@ def collect() -> int:
 
             text = record.get("text", "").strip()
             if not text:
+                continue
+            if _is_noise(text):
                 continue
 
             uri = post.get("uri", "")
