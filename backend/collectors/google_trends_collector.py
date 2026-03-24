@@ -19,15 +19,45 @@ from db.database import get_connection, init_db
 
 SOURCE_NAME = "google_trends"
 
+# pytrends raises ResponseError (a subclass of Exception) on HTTP errors.
+# 429 responses mean Google is rate-limiting. Back off and retry a few times,
+# then give up — the collector failing silently is acceptable since it's unreliable.
+_RETRIES = 3
+_BACKOFF_START = 30  # seconds
+
+
+def _fetch_with_retry():
+    backoff = _BACKOFF_START
+    last_err = None
+    for attempt in range(_RETRIES):
+        try:
+            pytrends = TrendReq(hl="en-US", tz=360, timeout=(10, 25))
+            return pytrends.realtime_trending_searches(pn="US")
+        except Exception as e:
+            last_err = e
+            err_str = str(e)
+            if "429" in err_str or "Too Many Requests" in err_str:
+                if attempt < _RETRIES - 1:
+                    print(f"  Google Trends: rate-limited (429). Retrying in {backoff}s...")
+                    time.sleep(backoff)
+                    backoff *= 2
+                else:
+                    print(
+                        f"  Google Trends: rate-limited after {_RETRIES} attempts. "
+                        "Consider reducing collection frequency to once per day."
+                    )
+            else:
+                # Non-rate-limit error — no point retrying
+                break
+    raise last_err
+
 
 def collect() -> int:
     init_db()
     inserted = 0
 
     try:
-        pytrends = TrendReq(hl="en-US", tz=360, timeout=(10, 25))
-        # realtime_trending_searches returns a DataFrame of trending queries
-        trending_df = pytrends.realtime_trending_searches(pn="US")
+        trending_df = _fetch_with_retry()
     except Exception as e:
         print(f"  Google Trends fetch failed: {e}")
         return 0

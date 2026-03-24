@@ -7,12 +7,12 @@
 #   - Uses the "What's Hot" curated feed, which is US/English-dominant but not
 #     guaranteed to reflect emerging topics immediately.
 #   - Post text is truncated to 280 characters; full context requires the post URL.
-#   - Engagement metrics (likes, reposts) are available via a separate record fetch,
-#     but this collector uses the feed response only to keep calls minimal.
 #   - Like/repost counts are stored as upvotes/comments respectively.
+#   - popularity_score = log(likes + 1) + log(reposts + 1), matching Reddit's formula.
 #   - The public API has no published rate limits but may throttle aggressive polling.
 #     Once or twice per day is recommended for "What's Hot" which updates slowly.
 
+import math
 from datetime import datetime, timezone
 
 import requests
@@ -91,7 +91,7 @@ def collect() -> int:
                     created_at,
                     like_count,
                     repost_count,
-                    1.0,
+                    math.log(like_count + 1) + math.log(repost_count + 1),
                 ),
             )
             if cursor.rowcount > 0:

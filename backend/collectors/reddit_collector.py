@@ -17,6 +17,22 @@ from db.database import get_connection, init_db
 
 SUBREDDITS = ["sanfrancisco", "AskSF", "bayarea", "technology"]
 
+# r/technology is US-wide. Only ingest posts that have a clear SF/Bay Area angle.
+TECHNOLOGY_SF_KEYWORDS = [
+    "san francisco", "sf ", "bay area", "silicon valley",
+    "oakland", "berkeley", "soma", "mission district",
+    "caltrain", "bart ", "waymo", "openai", "anthropic",
+    "google", "apple", "meta", "salesforce", "twitter", "x.com",
+]
+
+
+def _passes_subreddit_filter(sub_name: str, title: str) -> bool:
+    """Return False to skip a post that doesn't meet subreddit-specific criteria."""
+    if sub_name == "technology":
+        lower = title.lower()
+        return any(kw in lower for kw in TECHNOLOGY_SF_KEYWORDS)
+    return True
+
 
 def _make_reddit() -> praw.Reddit:
     return praw.Reddit(
@@ -52,6 +68,8 @@ def collect() -> int:
             posts = _fetch_posts_with_retry(subreddit, REDDIT_POST_LIMIT)
 
             for post in posts:
+                if not _passes_subreddit_filter(sub_name, post.title):
+                    continue
                 upvotes = post.score
                 comments = post.num_comments
                 popularity_score = math.log(upvotes + 1) + math.log(comments + 1)

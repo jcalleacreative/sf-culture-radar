@@ -212,8 +212,11 @@ Optional filters: `category`, `min_llm_score`, `source`
 ### popularity_score
 Computed at collection time:
 - **Reddit:** `log(upvotes + 1) + log(comments + 1)` — roughly 0–10 for typical posts
-- **YouTube:** `log(viewCount + 1)`, capped at 10
-- **RSS / Google Trends / BlueSky:** `1.0`
+- **YouTube:** `log(viewCount + 1)`, hard-capped at `10.0`. A video with 100M views
+  scores the same as one with 1M — YouTube scores will always be ≤ 10. Reddit viral
+  posts are not capped and can exceed 10.
+- **BlueSky:** `log(likes + 1) + log(reposts + 1)`, same formula as Reddit.
+- **RSS / Google Trends:** `1.0` (no engagement data available).
 
 ### llm_score
 Integer 0–10 assigned by the LLM after analysis. Reflects estimated comedy sketch
