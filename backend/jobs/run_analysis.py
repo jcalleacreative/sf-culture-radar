@@ -107,6 +107,26 @@ def main():
         f"{high_scorers} high scorers total in the last 7 days."
     )
 
+    print(f"\n=== High Scoring Stories (last 7 days, score >= {ANALYSIS_HIGH_SCORE_THRESHOLD}) ===\n")
+    with get_connection() as conn:
+        top_rows = conn.execute(
+            """
+            SELECT id, title, url, llm_score, category, signals FROM stories
+            WHERE llm_score >= ? AND timestamp >= ?
+            ORDER BY llm_score DESC
+            """,
+            (ANALYSIS_HIGH_SCORE_THRESHOLD, cutoff),
+        ).fetchall()
+
+    if not top_rows:
+        print("No high scoring stories found in the last 7 days.")
+    else:
+        for row in top_rows:
+            signals = json.loads(row["signals"]) if row["signals"] else []
+            print(f"[{row['id']}] {row['title']}")
+            print(f"  score={row['llm_score']} | category={row['category']} | signals={signals}")
+            print(f"  {row['url']}")
+
 
 if __name__ == "__main__":
     main()
