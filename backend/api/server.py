@@ -39,6 +39,8 @@ SOURCE_GROUPS = {
     "google_trends": ["google_trends"],
     "youtube": ["youtube"],
     "bluesky": ["bluesky"],
+    "hackernews": ["hackernews"],
+    "wikipedia": ["wikipedia"],
 }
 
 DB_FIELDS = (

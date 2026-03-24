@@ -12,6 +12,8 @@ from collectors import (
     google_trends_collector,
     youtube_collector,
     bluesky_collector,
+    hackernews_collector,
+    wikipedia_collector,
 )
 
 
@@ -33,6 +35,8 @@ def main():
     total += _run("Google Trends", google_trends_collector.collect)
     total += _run("YouTube", youtube_collector.collect)
     total += _run("BlueSky", bluesky_collector.collect)
+    total += _run("Hacker News", hackernews_collector.collect)
+    total += _run("Wikipedia Trending", wikipedia_collector.collect)
     print(f"\nDone. Total new stories inserted: {total}")
 
 

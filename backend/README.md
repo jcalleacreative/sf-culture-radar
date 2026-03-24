@@ -101,6 +101,24 @@ The system pulls from five source types. Each represents a different kind of att
   - Likes stored as `upvotes`, reposts stored as `comments`
   - Results are global, not SF-specific
 
+### 6. Hacker News
+- Top 50 stories from the official Hacker News Firebase API
+- **No API key required**
+- Ask HN and text-only posts (no URL) are skipped
+- Popularity score: `log(score + 1) + log(descendants + 1)`
+- A 0.05s delay between item fetches keeps load polite to the API
+- Results are global tech/startup news, not SF-specific
+
+### 7. Wikipedia Trending
+- Most-viewed English Wikipedia articles for yesterday via the official Wikimedia Pageviews API
+- **No API key required**
+- Uses yesterday's date since the current day's data is not always available
+- Standard maintenance articles (Main Page, Special:Search, etc.) are skipped
+- Top 50 articles kept after filtering
+- Popularity score: `log(views + 1)`, uncapped
+- `upvotes` stores the raw view count; `comments` is null
+- Results are global, not SF-specific
+
 ---
 
 ## Run Collectors Manually
@@ -111,7 +129,7 @@ From the `backend/` directory:
 python jobs/run_collectors.py
 ```
 
-Runs all five collectors in sequence. Each collector catches its own errors and
+Runs all collectors in sequence. Each collector catches its own errors and
 continues — a single source failure won't stop the others.
 
 ---
