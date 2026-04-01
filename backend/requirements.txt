@@ -7,3 +7,4 @@ anthropic
 python-dotenv
 pytrends
 requests
+pytest

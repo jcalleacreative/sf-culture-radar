@@ -94,21 +94,28 @@ async def post_panel_show(request: Request):
     """
     Generate candidate comedy panel-show segments from a batch of local news stories.
 
-    Input body: JSON array of story objects, each with:
-      id, headline, summary, source, url, published_at, image_url (optional)
+    Required story fields: id, headline, source, url
+    Optional story fields: summary, published_at, image_url
 
-    Returns segments grouped by type (scenes, if_this_is_the_answer, truth_or_lie,
-    picture_of_week, unlikely_things, wildcard) so producers can pick the final lineup,
-    plus unused_stories with reasons for exclusion.
+    Returns segments grouped by type so producers can pick the final lineup:
+      scenes, if_this_is_the_answer, truth_or_lie, picture_of_week,
+      unlikely_things, wildcard
+    Plus unused_stories with reasons for exclusion.
     """
-    from llm.panel_show import generate_panel_show
+    from llm.panel_show import generate_panel_show, validate_input_stories
 
     body = await request.json()
     if not isinstance(body, list):
         return JSONResponse(status_code=422, content={"detail": "Body must be a JSON array of stories."})
 
-    story_count = len(body)
-    logger.info("panel_show: received %d stories", story_count)
+    errors = validate_input_stories(body)
+    if errors:
+        return JSONResponse(
+            status_code=422,
+            content={"detail": "Invalid story objects.", "errors": errors},
+        )
+
+    logger.info("panel_show: received %d stories", len(body))
 
     try:
         result = generate_panel_show(body)
@@ -117,7 +124,7 @@ async def post_panel_show(request: Request):
         return JSONResponse(status_code=502, content={"detail": f"LLM response parse failure: {exc}"})
 
     selected = sum(len(v) for v in result["segments"].values())
-    logger.info("panel_show: %d/%d stories selected as candidates", selected, story_count)
+    logger.info("panel_show: %d/%d stories selected as candidates", selected, len(body))
 
     return result
 
