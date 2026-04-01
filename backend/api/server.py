@@ -89,6 +89,39 @@ def _build_source_filter(source: Optional[str]) -> tuple[str, list]:
     return " AND source = ?", [source]
 
 
+@app.post("/panel-show")
+async def post_panel_show(request: Request):
+    """
+    Generate candidate comedy panel-show segments from a batch of local news stories.
+
+    Input body: JSON array of story objects, each with:
+      id, headline, summary, source, url, published_at, image_url (optional)
+
+    Returns segments grouped by type (scenes, if_this_is_the_answer, truth_or_lie,
+    picture_of_week, unlikely_things, wildcard) so producers can pick the final lineup,
+    plus unused_stories with reasons for exclusion.
+    """
+    from llm.panel_show import generate_panel_show
+
+    body = await request.json()
+    if not isinstance(body, list):
+        return JSONResponse(status_code=422, content={"detail": "Body must be a JSON array of stories."})
+
+    story_count = len(body)
+    logger.info("panel_show: received %d stories", story_count)
+
+    try:
+        result = generate_panel_show(body)
+    except (json.JSONDecodeError, ValueError, KeyError) as exc:
+        logger.error("panel_show: parse/validation failure — %s", exc)
+        return JSONResponse(status_code=502, content={"detail": f"LLM response parse failure: {exc}"})
+
+    selected = sum(len(v) for v in result["segments"].values())
+    logger.info("panel_show: %d/%d stories selected as candidates", selected, story_count)
+
+    return result
+
+
 @app.get("/stories")
 def get_stories(
     category: Optional[str] = Query(default=None),
